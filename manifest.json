@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ながれ｜体重記録</title>
+<meta name="theme-color" content="#F6F3EC">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="hero">
+    <p class="hero__date" id="todayLabel">8月3日（月）</p>
+    <div class="hero__main">
+      <div class="hero__weight">
+        <span class="hero__num" id="latestWeight">--</span>
+        <span class="hero__unit">kg</span>
+      </div>
+      <div class="hero__trend" id="trendBadge">
+        <span class="hero__trend-arrow" id="trendArrow">–</span>
+        <span class="hero__trend-text" id="trendText">記録を始めましょう</span>
+      </div>
+    </div>
+    <p class="hero__sub" id="avgSub">7日平均：--</p>
+  </header>
+
+  <main>
+
+    <!-- 今日の記録 -->
+    <section class="card entry-card">
+      <h2 class="card__title">今日の記録</h2>
+      <form id="entryForm">
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">体重（kg）</span>
+            <input type="number" id="inputWeight" inputmode="decimal" step="0.1" min="0" required placeholder="72.5">
+          </label>
+          <label class="field field--sub">
+            <span class="field__label">体脂肪率（%）<em>参考</em></span>
+            <input type="number" id="inputBodyFat" inputmode="decimal" step="0.1" min="0" max="80" placeholder="任意">
+          </label>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="inputCondition" checked>
+          <span>起床後・トイレ後・朝食前に測った</span>
+        </label>
+
+        <div class="tag-row">
+          <label class="tag-toggle">
+            <input type="checkbox" id="inputTableTennis">
+            <span class="tag-toggle__pill tag-toggle__pill--teal">卓球した日</span>
+          </label>
+          <label class="tag-toggle">
+            <input type="radio" name="meal" id="inputMealBento" value="bento">
+            <span class="tag-toggle__pill tag-toggle__pill--sage">固定メニュー</span>
+          </label>
+          <label class="tag-toggle">
+            <input type="radio" name="meal" id="inputMealOther" value="other">
+            <span class="tag-toggle__pill tag-toggle__pill--clay">それ以外</span>
+          </label>
+        </div>
+
+        <label class="field field--memo">
+          <span class="field__label">メモ（任意）</span>
+          <input type="text" id="inputMemo" placeholder="飲み会だった、寝不足、など">
+        </label>
+
+        <button type="submit" class="btn btn--primary" id="saveBtn">今日の記録を保存</button>
+        <p class="entry-card__hint" id="editingHint" hidden>今日の記録はすでにあります。保存すると上書きされます。</p>
+      </form>
+    </section>
+
+    <!-- チャート -->
+    <section class="card flow-card">
+      <div class="flow-card__head">
+        <h2 class="card__title">体重のながれ</h2>
+        <div class="flow-card__range" id="rangeButtons">
+          <button data-range="30" class="range-btn is-active">1ヶ月</button>
+          <button data-range="90">3ヶ月</button>
+          <button data-range="all">すべて</button>
+        </div>
+      </div>
+      <div class="flow-chart" id="flowChart">
+        <p class="flow-chart__empty" id="flowEmpty">まだ記録がありません。今日の体重を記録すると、ここに流れが見えてきます。</p>
+      </div>
+      <div class="flow-legend">
+        <span><i class="dot dot--clay"></i>毎日の記録</span>
+        <span><i class="dot dot--sage"></i>7日移動平均</span>
+        <span><i class="dot dot--teal"></i>卓球した日</span>
+      </div>
+    </section>
+
+    <!-- 統計 -->
+    <section class="stat-grid">
+      <div class="stat-box">
+        <p class="stat-box__label">7日平均</p>
+        <p class="stat-box__value" id="statAvg7">--</p>
+      </div>
+      <div class="stat-box">
+        <p class="stat-box__label">先週比</p>
+        <p class="stat-box__value" id="statWeekDiff">--</p>
+      </div>
+      <div class="stat-box">
+        <p class="stat-box__label">直近の変化ペース</p>
+        <p class="stat-box__value" id="statPace">--</p>
+      </div>
+      <div class="stat-box" id="goalBox">
+        <p class="stat-box__label">目標まで</p>
+        <p class="stat-box__value" id="statGoal">未設定</p>
+      </div>
+    </section>
+
+    <!-- 目標設定 -->
+    <section class="card goal-card">
+      <button class="disclosure" id="goalToggle" type="button">目標を設定する</button>
+      <div class="disclosure__body" id="goalBody" hidden>
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">目標体重（kg）</span>
+            <input type="number" id="goalWeight" inputmode="decimal" step="0.1" placeholder="68.0">
+          </label>
+          <label class="field">
+            <span class="field__label">目標日（任意）</span>
+            <input type="date" id="goalDate">
+          </label>
+        </div>
+        <button class="btn btn--ghost" id="goalSaveBtn" type="button">目標を保存</button>
+        <button class="btn btn--text" id="goalClearBtn" type="button">目標を削除</button>
+      </div>
+    </section>
+
+    <!-- 履歴 -->
+    <section class="card history-card">
+      <button class="disclosure" id="historyToggle" type="button">記録の一覧を見る</button>
+      <div class="disclosure__body" id="historyBody" hidden>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </section>
+
+    <!-- バックアップ -->
+    <section class="card backup-card">
+      <button class="disclosure" id="backupToggle" type="button">バックアップ</button>
+      <div class="disclosure__body" id="backupBody" hidden>
+        <p class="backup-card__note">このアプリのデータはこの端末にだけ保存されています。機種変更やブラウザのデータ削除に備えて、ときどきバックアップを書き出しておくのがおすすめです。</p>
+        <div class="backup-actions">
+          <button class="btn btn--ghost" id="exportBtn" type="button">書き出す（JSON）</button>
+          <label class="btn btn--ghost btn--file">
+            読み込む（JSON）
+            <input type="file" id="importInput" accept="application/json" hidden>
+          </label>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>数字は毎日じゃなくて、流れで見てください。</p>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
