@@ -117,8 +117,8 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
 }
 
 /* ---------- Form ---------- */
-.field-row{ display:flex; gap: 12px; }
-.field{ flex: 1; display:flex; flex-direction:column; gap: 6px; margin-bottom: 14px; }
+.field-row{ display:flex; flex-wrap: wrap; gap: 12px; }
+.field{ flex: 1 1 140px; min-width: 0; display:flex; flex-direction:column; gap: 6px; margin-bottom: 14px; }
 .field--sub{ flex: 0.85; }
 .field--memo{ margin-bottom: 16px; }
 .field__label{
@@ -169,11 +169,15 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
   gap: 8px;
   margin-bottom: 16px;
 }
-.tag-toggle{ cursor: pointer; }
+.tag-toggle{ position: relative; display: inline-block; cursor: pointer; }
 .tag-toggle input{
   position:absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity:0;
-  width:0; height:0;
+  cursor: pointer;
 }
 .tag-toggle__pill{
   display:inline-block;
@@ -339,26 +343,69 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
 /* ---------- History ---------- */
 .history-list{ display:flex; flex-direction:column; gap: 2px; }
 .history-row{
-  display:flex;
+  display:grid;
+  grid-template-columns: 70px 1fr auto auto;
   align-items:center;
-  justify-content: space-between;
-  padding: 11px 0;
+  gap: 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
   font-size: 13.5px;
 }
 .history-row:last-child{ border-bottom: none; }
-.history-row__date{ color: var(--ink-soft); width: 92px; flex-shrink:0; }
-.history-row__weight{ font-variant-numeric: tabular-nums; font-weight: 700; flex: 1; }
-.history-row__tags{ display:flex; gap:4px; flex-shrink:0; }
+.history-row__date{ color: var(--ink-soft); }
+.history-row__weight{ font-variant-numeric: tabular-nums; font-weight: 700; min-width: 0; overflow-wrap: break-word; }
+.history-row__tags{ display:flex; gap:4px; }
 .history-row__tags i{ width:6px; height:6px; border-radius:50%; display:inline-block; }
 .history-row__del{
   background:none; border:none; color: var(--ink-soft);
-  font-size: 12px; cursor:pointer; padding: 4px 0 4px 10px; text-decoration: underline;
+  font-size: 12.5px; cursor:pointer; text-decoration: underline;
+  padding: 10px 4px 10px 14px;
+  min-height: 44px;
+  min-width: 44px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
 }
+.history-row__del:active{ color: var(--danger); }
 
 /* ---------- Backup ---------- */
 .backup-card__note{ font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; }
 .backup-actions{ display:flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Toast ---------- */
+.toast{
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translate(-50%, 12px);
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.toast.is-visible{
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.toast__check{
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--sage);
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size: 11px;
+}
 
 /* ---------- Footer ---------- */
 .app-footer{

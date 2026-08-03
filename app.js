@@ -243,13 +243,13 @@
     return d;
   }
 
+  const FLOW_EMPTY_HTML = '<p class="flow-chart__empty" id="flowEmpty">まだ記録がありません。今日の体重を記録すると、ここに流れが見えてきます。</p>';
+
   function renderChart(entries, movingAvgs, goal, rangeKey){
     const container = document.getElementById('flowChart');
-    const emptyMsg = document.getElementById('flowEmpty');
 
     if (entries.length === 0){
-      container.innerHTML = '';
-      container.appendChild(emptyMsg);
+      container.innerHTML = FLOW_EMPTY_HTML;
       return;
     }
 
@@ -262,8 +262,7 @@
     const visibleAvgs = movingAvgs.filter(m => parseISO(m.date) >= start);
 
     if (visible.length === 0){
-      container.innerHTML = '';
-      container.appendChild(emptyMsg);
+      container.innerHTML = FLOW_EMPTY_HTML;
       return;
     }
 
@@ -371,9 +370,24 @@
         if (confirm(`${btn.dataset.date} の記録を削除しますか？`)){
           deleteEntry(btn.dataset.date);
           refreshAll();
+          showToast('削除しました');
         }
       });
     });
+  }
+
+  /* ---------------- Toast ---------------- */
+
+  let toastTimer = null;
+  function showToast(message){
+    const toast = document.getElementById('toast');
+    const msg = document.getElementById('toastMsg');
+    msg.textContent = message;
+    toast.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove('is-visible');
+    }, 1800);
   }
 
   /* ---------------- App state / wiring ---------------- */
@@ -431,11 +445,24 @@
       };
       upsertEntry(entry);
       refreshAll();
+      showToast('今日の記録を保存しました');
+    });
+  }
 
-      const btn = document.getElementById('saveBtn');
-      const original = btn.textContent;
-      btn.textContent = '保存しました';
-      setTimeout(() => { btn.textContent = original; }, 1400);
+  function setupMealToggle(){
+    // Radio buttons can't natively be switched back to "unselected" by tapping
+    // the already-selected pill again. This makes 固定メニュー/それ以外 behave
+    // like the 卓球 checkbox: tap to select, tap again to clear.
+    const radios = [document.getElementById('inputMealBento'), document.getElementById('inputMealOther')];
+    radios.forEach(radio => {
+      radio.addEventListener('pointerdown', function(){
+        this.dataset.wasChecked = this.checked ? 'true' : 'false';
+      });
+      radio.addEventListener('click', function(){
+        if (this.dataset.wasChecked === 'true'){
+          this.checked = false;
+        }
+      });
     });
   }
 
@@ -476,12 +503,14 @@
       if (Number.isNaN(w)) return;
       saveGoal({ weight: w, date: d || null });
       refreshAll();
+      showToast('目標を保存しました');
     });
     document.getElementById('goalClearBtn').addEventListener('click', () => {
       saveGoal(null);
       document.getElementById('goalWeight').value = '';
       document.getElementById('goalDate').value = '';
       refreshAll();
+      showToast('目標を削除しました');
     });
   }
 
@@ -529,6 +558,7 @@
 
   function init(){
     setupForm();
+    setupMealToggle();
     setupRangeButtons();
     setupDisclosures();
     setupGoal();
