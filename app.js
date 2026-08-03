@@ -48,7 +48,12 @@
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
       const arr = raw ? JSON.parse(raw) : [];
-      return arr.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+      const migrated = arr.map(e => ({
+        ...e,
+        exercise: e.exercise ?? e.tableTennis ?? false,
+        bento: e.bento ?? (e.meal === 'bento'),
+      }));
+      return migrated.sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     }catch(e){
       console.error('load failed', e);
       return [];
@@ -318,7 +323,7 @@
     visible.forEach(e => {
       const cx = xOf(parseISO(e.date));
       const cy = yOf(e.weight);
-      if (e.tableTennis){
+      if (e.exercise){
         svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="none" stroke="#3F6E67" stroke-width="1.6" />`;
       }
       svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="#9C917A" />`;
@@ -353,9 +358,8 @@
     const rows = entries.slice().reverse().map(e => {
       const d = parseISO(e.date);
       const tags = [];
-      if (e.tableTennis) tags.push('<i style="background:#3F6E67" title="卓球"></i>');
-      if (e.meal === 'bento') tags.push('<i style="background:#62785B" title="固定メニュー"></i>');
-      if (e.meal === 'other') tags.push('<i style="background:#C7BCA6" title="それ以外の食事"></i>');
+      if (e.exercise) tags.push('<i style="background:#3F6E67" title="運動した"></i>');
+      if (e.bento) tags.push('<i style="background:#62785B" title="固定メニュー"></i>');
       return `
         <div class="history-row">
           <span class="history-row__date">${formatShort(d)}（${DOW[d.getDay()]}）</span>
@@ -415,9 +419,8 @@
       document.getElementById('inputWeight').value = existing.weight;
       document.getElementById('inputBodyFat').value = existing.bodyFat ?? '';
       document.getElementById('inputCondition').checked = !!existing.condition;
-      document.getElementById('inputTableTennis').checked = !!existing.tableTennis;
-      document.getElementById('inputMealBento').checked = existing.meal === 'bento';
-      document.getElementById('inputMealOther').checked = existing.meal === 'other';
+      document.getElementById('inputExercise').checked = !!existing.exercise;
+      document.getElementById('inputBento').checked = !!existing.bento;
       document.getElementById('inputMemo').value = existing.memo || '';
       hint.hidden = false;
     } else {
@@ -431,38 +434,19 @@
       const weight = parseFloat(document.getElementById('inputWeight').value);
       if (Number.isNaN(weight) || weight <= 0) return;
       const bodyFatRaw = document.getElementById('inputBodyFat').value;
-      const meal = document.getElementById('inputMealBento').checked ? 'bento'
-                 : document.getElementById('inputMealOther').checked ? 'other' : null;
 
       const entry = {
         date: todayStr(),
         weight,
         bodyFat: bodyFatRaw === '' ? null : parseFloat(bodyFatRaw),
         condition: document.getElementById('inputCondition').checked,
-        tableTennis: document.getElementById('inputTableTennis').checked,
-        meal,
+        exercise: document.getElementById('inputExercise').checked,
+        bento: document.getElementById('inputBento').checked,
         memo: document.getElementById('inputMemo').value.trim()
       };
       upsertEntry(entry);
       refreshAll();
       showToast('今日の記録を保存しました');
-    });
-  }
-
-  function setupMealToggle(){
-    // Radio buttons can't natively be switched back to "unselected" by tapping
-    // the already-selected pill again. This makes 固定メニュー/それ以外 behave
-    // like the 卓球 checkbox: tap to select, tap again to clear.
-    const radios = [document.getElementById('inputMealBento'), document.getElementById('inputMealOther')];
-    radios.forEach(radio => {
-      radio.addEventListener('pointerdown', function(){
-        this.dataset.wasChecked = this.checked ? 'true' : 'false';
-      });
-      radio.addEventListener('click', function(){
-        if (this.dataset.wasChecked === 'true'){
-          this.checked = false;
-        }
-      });
     });
   }
 
@@ -558,7 +542,6 @@
 
   function init(){
     setupForm();
-    setupMealToggle();
     setupRangeButtons();
     setupDisclosures();
     setupGoal();

@@ -54,19 +54,19 @@
           <span>起床後・トイレ後・朝食前に測った</span>
         </label>
 
-        <div class="tag-row">
-          <label class="tag-toggle">
-            <input type="checkbox" id="inputTableTennis">
-            <span class="tag-toggle__pill tag-toggle__pill--teal">卓球した日</span>
+        <div class="tag-section">
+          <p class="tag-section__label">前日の行動（今の体重に影響している方）</p>
+          <label class="check-row">
+            <input type="checkbox" id="inputExercise">
+            <span>前日 運動した</span>
           </label>
-          <label class="tag-toggle">
-            <input type="radio" name="meal" id="inputMealBento" value="bento">
-            <span class="tag-toggle__pill tag-toggle__pill--sage">固定メニュー</span>
-          </label>
-          <label class="tag-toggle">
-            <input type="radio" name="meal" id="inputMealOther" value="other">
-            <span class="tag-toggle__pill tag-toggle__pill--clay">それ以外</span>
-          </label>
+          <div class="check-row check-row--split">
+            <label class="check-row__main">
+              <input type="checkbox" id="inputBento">
+              <span>前日 固定メニューだった</span>
+            </label>
+            <a href="recipe.png" target="_blank" rel="noopener" class="recipe-btn">レシピを見る</a>
+          </div>
         </div>
 
         <label class="field field--memo">
@@ -95,7 +95,7 @@
       <div class="flow-legend">
         <span><i class="dot dot--clay"></i>毎日の記録</span>
         <span><i class="dot dot--sage"></i>7日移動平均</span>
-        <span><i class="dot dot--teal"></i>卓球した日</span>
+        <span><i class="dot dot--teal"></i>運動した日</span>
       </div>
     </section>
 
