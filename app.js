@@ -42,6 +42,12 @@
     return n.toFixed(1);
   }
 
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, (c) => (
+      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+    ));
+  }
+
   /* ---------------- Storage ---------------- */
 
   function loadEntries(){
@@ -430,12 +436,16 @@
       const tags = [];
       if (e.exercise) tags.push('<i style="background:#3F6E67" title="運動した"></i>');
       if (e.bento) tags.push('<i style="background:#62785B" title="固定メニュー"></i>');
+      const memoHtml = e.memo
+        ? `<p class="history-row__memo">${escapeHtml(e.memo)}</p>`
+        : '';
       return `
         <div class="history-row">
           <span class="history-row__date">${formatShort(d)}（${DOW[d.getDay()]}）</span>
           <span class="history-row__weight">${fmtKg(e.weight)}kg${e.bodyFat ? ` ・ ${fmtKg(e.bodyFat)}%` : ''}</span>
           <span class="history-row__tags">${tags.join('')}</span>
           <button class="history-row__del" data-date="${e.date}">削除</button>
+          ${memoHtml}
         </div>`;
     }).join('');
     list.innerHTML = rows;

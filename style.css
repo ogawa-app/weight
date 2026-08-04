@@ -434,6 +434,14 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
   justify-content:flex-end;
 }
 .history-row__del:active{ color: var(--danger); }
+.history-row__memo{
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
 
 /* ---------- Backup ---------- */
 .backup-card__note{ font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; }
@@ -475,16 +483,44 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
 }
 
 /* ---------- Recipe page ---------- */
+.recipe-body{ height: 100%; }
+.recipe-app{
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.recipe-hero{ padding: 20px 24px 14px; flex: 0 0 auto; }
+.recipe-main{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 16px 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+.recipe-card{
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+}
+.recipe-card .card__title{ flex: 0 0 auto; }
 .recipe-card__img{
   display:block;
   width: 100%;
-  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  object-fit: contain;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
 }
-.recipe-card__back{
+.recipe-back-btn{
+  flex: 0 0 auto;
   display:block;
-  margin-top: 20px;
   text-decoration: none;
 }
 
