@@ -118,7 +118,7 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
 
 /* ---------- Form ---------- */
 .field-row{ display:flex; flex-direction: column; }
-.field{ display:flex; flex-direction:column; gap: 6px; margin-bottom: 14px; min-width: 0; }
+.field{ display:flex; flex-direction:column; gap: 6px; margin-bottom: 14px; min-width: 0; max-width: 100%; overflow: hidden; }
 .field--memo{ margin-bottom: 16px; }
 .field__label{
   font-size: 12.5px;
@@ -146,7 +146,14 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
   background: var(--bg);
   color: var(--ink);
   width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
+}
+.field input[type="date"]{
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
 }
 .field input:focus-visible{
   outline: 2px solid var(--sage);
