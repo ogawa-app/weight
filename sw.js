@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weightflow-cache-v4';
+const CACHE_NAME = 'weightflow-cache-v5';
 const CORE_FILES = [
   './',
   './index.html',

@@ -94,15 +94,16 @@
 
   /* ---------------- Stats ---------------- */
 
-  function computeMovingAverages(entries){
-    return entries.map(e => {
+  function computeMovingAverages(entries, field='weight'){
+    const withField = entries.filter(e => e[field] !== null && e[field] !== undefined && !Number.isNaN(e[field]));
+    return withField.map(e => {
       const d = parseISO(e.date);
       const start = addDays(d, -6);
-      const windowEntries = entries.filter(x => {
+      const windowEntries = withField.filter(x => {
         const xd = parseISO(x.date);
         return xd >= start && xd <= d;
       });
-      const avg = windowEntries.reduce((s,x)=>s+x.weight,0) / windowEntries.length;
+      const avg = windowEntries.reduce((s,x)=>s+x[field],0) / windowEntries.length;
       return { date: e.date, avg };
     });
   }
@@ -249,30 +250,47 @@
   }
 
   const FLOW_EMPTY_HTML = '<p class="flow-chart__empty" id="flowEmpty">まだ記録がありません。今日の体重を記録すると、ここに流れが見えてきます。</p>';
+  const FLOW_EMPTY_BODYFAT_HTML = '<p class="flow-chart__empty">体脂肪率の記録がまだありません。</p>';
 
-  function renderChart(entries, movingAvgs, goal, rangeKey){
+  const METRIC_FIELD = { weight: 'weight', bodyFat: 'bodyFat' };
+  const METRIC_UNIT = { weight: 'kg', bodyFat: '%' };
+  const METRIC_ARIA = { weight: '体重の推移グラフ', bodyFat: '体脂肪率の推移グラフ' };
+
+  // The chart is redrawn with a viewBox that matches the container's actual
+  // CSS pixel width (instead of a fixed 600-unit box that gets scaled up or
+  // down by the browser). That keeps text, dots and lines a genuinely
+  // readable, constant physical size on every phone, instead of shrinking
+  // on narrower screens.
+  function renderChart(entries, goal, rangeKey, metric){
     const container = document.getElementById('flowChart');
+    const field = METRIC_FIELD[metric] || 'weight';
+    const unit = METRIC_UNIT[field];
 
-    if (entries.length === 0){
-      container.innerHTML = FLOW_EMPTY_HTML;
+    const withField = entries.filter(e => e[field] !== null && e[field] !== undefined && !Number.isNaN(e[field]));
+
+    if (withField.length === 0){
+      container.innerHTML = field === 'bodyFat' ? FLOW_EMPTY_BODYFAT_HTML : FLOW_EMPTY_HTML;
       return;
     }
+
+    const movingAvgs = computeMovingAverages(entries, field);
 
     const today = todayDate();
     let start;
-    if (rangeKey === 'all') start = parseISO(entries[0].date);
+    if (rangeKey === 'all') start = parseISO(withField[0].date);
     else start = addDays(today, -(parseInt(rangeKey,10)-1));
 
-    const visible = entries.filter(e => parseISO(e.date) >= start);
+    const visible = withField.filter(e => parseISO(e.date) >= start);
     const visibleAvgs = movingAvgs.filter(m => parseISO(m.date) >= start);
 
     if (visible.length === 0){
-      container.innerHTML = FLOW_EMPTY_HTML;
+      container.innerHTML = field === 'bodyFat' ? FLOW_EMPTY_BODYFAT_HTML : FLOW_EMPTY_HTML;
       return;
     }
 
-    const W = 600, H = 220;
-    const padL = 40, padR = 14, padT = 18, padB = 26;
+    const W = Math.max(280, Math.round(container.clientWidth || 320));
+    const H = 260;
+    const padL = 46, padR = 18, padT = 24, padB = 32;
     const plotW = W - padL - padR;
     const plotH = H - padT - padB;
 
@@ -282,9 +300,9 @@
 
     const xOf = (dateObj) => padL + ((dateObj - dayStart)/86400000 / totalDays) * plotW;
 
-    let weights = visible.map(e => e.weight).concat(visibleAvgs.map(m => m.avg));
-    if (goal && goal.weight) weights.push(goal.weight);
-    let yMin = Math.min(...weights), yMax = Math.max(...weights);
+    let values = visible.map(e => e[field]).concat(visibleAvgs.map(m => m.avg));
+    if (field === 'weight' && goal && goal.weight) values.push(goal.weight);
+    let yMin = Math.min(...values), yMax = Math.max(...values);
     if (yMax - yMin < 1.5){
       const mid = (yMax+yMin)/2;
       yMin = mid - 0.75; yMax = mid + 0.75;
@@ -292,55 +310,69 @@
     const pad_ = (yMax-yMin) * 0.15;
     yMin -= pad_; yMax += pad_;
 
-    const yOf = (w) => padT + (1 - (w - yMin)/(yMax-yMin)) * plotH;
+    const yOf = (v) => padT + (1 - (v - yMin)/(yMax-yMin)) * plotH;
 
-    let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="体重の推移グラフ">`;
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${METRIC_ARIA[field]}">`;
 
-    // gridlines (2 horizontal)
+    // gridlines (3 horizontal)
     for (let i=0;i<=2;i++){
       const y = padT + (plotH/2)*i;
       svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E4DFD3" stroke-width="1" />`;
     }
 
-    // goal line
-    if (goal && goal.weight){
+    // goal line (weight only)
+    if (field === 'weight' && goal && goal.weight){
       const gy = yOf(goal.weight);
-      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#B98B4E" stroke-width="1.2" stroke-dasharray="4 4" />`;
-      svg += `<text x="${W-padR}" y="${(gy-5).toFixed(1)}" text-anchor="end" font-size="9" fill="#B98B4E">目標 ${fmtKg(goal.weight)}kg</text>`;
+      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#B98B4E" stroke-width="1.5" stroke-dasharray="5 4" />`;
+      svg += `<text x="${W-padR}" y="${(gy-7).toFixed(1)}" text-anchor="end" font-size="13" font-weight="700" fill="#B98B4E">目標 ${fmtKg(goal.weight)}kg</text>`;
     }
 
     // today marker
     const tx = xOf(today);
-    svg += `<line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${padT+plotH}" stroke="#C7BCA6" stroke-width="1" stroke-dasharray="2 3" />`;
+    svg += `<line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${padT+plotH}" stroke="#C7BCA6" stroke-width="1.2" stroke-dasharray="2 3" />`;
+
+    // raw values connecting line (thin, behind the moving-average line)
+    if (visible.length >= 2){
+      const rawPts = visible.map(e => [xOf(parseISO(e.date)), yOf(e[field])]);
+      svg += `<path d="${catmullRomPath(rawPts)}" fill="none" stroke="#C7BCA6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />`;
+    }
 
     // moving average smooth line
     if (visibleAvgs.length >= 2){
       const pts = visibleAvgs.map(m => [xOf(parseISO(m.date)), yOf(m.avg)]);
-      svg += `<path d="${catmullRomPath(pts)}" fill="none" stroke="#62785B" stroke-width="2.5" stroke-linecap="round" />`;
+      svg += `<path d="${catmullRomPath(pts)}" fill="none" stroke="#62785B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />`;
     }
 
     // raw dots
     visible.forEach(e => {
       const cx = xOf(parseISO(e.date));
-      const cy = yOf(e.weight);
+      const cy = yOf(e[field]);
       if (e.exercise){
-        svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="none" stroke="#3F6E67" stroke-width="1.6" />`;
+        svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="8" fill="none" stroke="#3F6E67" stroke-width="2.2" />`;
       }
-      svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3" fill="#9C917A" />`;
+      svg += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4.5" fill="#9C917A" stroke="#FFFFFF" stroke-width="1.5" />`;
     });
+
+    // latest value label
+    const lastPt = visible[visible.length-1];
+    const lx = xOf(parseISO(lastPt.date));
+    const ly = yOf(lastPt[field]);
+    const lastAnchor = lx > W - padR - 60 ? 'end' : 'start';
+    const lastX = lastAnchor === 'end' ? lx - 10 : lx + 10;
+    svg += `<text x="${lastX.toFixed(1)}" y="${(ly-12).toFixed(1)}" text-anchor="${lastAnchor}" font-size="14" font-weight="700" fill="#26251F">${fmtKg(lastPt[field])}${unit}</text>`;
 
     // x-axis labels: start / mid / today
     const labelDates = [dayStart, new Date((dayStart.getTime()+dayEnd.getTime())/2), dayEnd];
     labelDates.forEach((d,i) => {
       const anchor = i===0 ? 'start' : (i===2 ? 'end' : 'middle');
       const x = i===0 ? padL : (i===2 ? W-padR : xOf(d));
-      svg += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="${anchor}" font-size="9.5" fill="#6B685E">${formatShort(d)}</text>`;
+      svg += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="${anchor}" font-size="13" fill="#6B685E">${formatShort(d)}</text>`;
     });
 
     // y-axis labels
     [yMax, (yMax+yMin)/2, yMin].forEach((v,i) => {
       const y = padT + (plotH/2)*i;
-      svg += `<text x="${padL-8}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9.5" fill="#6B685E">${v.toFixed(1)}</text>`;
+      svg += `<text x="${padL-8}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="13" fill="#6B685E">${v.toFixed(1)}</text>`;
     });
 
     svg += `</svg>`;
@@ -397,16 +429,16 @@
   /* ---------------- App state / wiring ---------------- */
 
   let currentRange = '30';
+  let currentMetric = 'weight';
 
   function refreshAll(){
     const entries = loadEntries();
     const goal = loadGoal();
     const stats = computeStats(entries);
-    const movingAvgs = computeMovingAverages(entries);
 
     renderHero(entries, stats);
     renderStatGrid(stats, goal);
-    renderChart(entries, movingAvgs, goal, currentRange);
+    renderChart(entries, goal, currentRange, currentMetric);
     renderHistory(entries);
     prefillTodayForm(entries);
   }
@@ -455,9 +487,30 @@
       const btn = ev.target.closest('button[data-range]');
       if (!btn) return;
       currentRange = btn.dataset.range;
-      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('is-active'));
+      document.querySelectorAll('#rangeButtons .segmented__btn').forEach(b => b.classList.remove('is-active'));
       btn.classList.add('is-active');
       refreshAll();
+    });
+  }
+
+  function setupMetricButtons(){
+    document.getElementById('metricButtons').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-metric]');
+      if (!btn) return;
+      currentMetric = btn.dataset.metric;
+      document.querySelectorAll('#metricButtons .segmented__btn').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      refreshAll();
+    });
+  }
+
+  function setupChartResize(){
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renderChart(loadEntries(), loadGoal(), currentRange, currentMetric);
+      }, 150);
     });
   }
 
@@ -543,6 +596,8 @@
   function init(){
     setupForm();
     setupRangeButtons();
+    setupMetricButtons();
+    setupChartResize();
     setupDisclosures();
     setupGoal();
     setupBackup();

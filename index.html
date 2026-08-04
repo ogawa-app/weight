@@ -82,11 +82,17 @@
     <!-- チャート -->
     <section class="card flow-card">
       <div class="flow-card__head">
-        <h2 class="card__title">体重のながれ</h2>
-        <div class="flow-card__range" id="rangeButtons">
-          <button data-range="30" class="range-btn is-active">1ヶ月</button>
-          <button data-range="90">3ヶ月</button>
-          <button data-range="all">すべて</button>
+        <h2 class="card__title">記録</h2>
+      </div>
+      <div class="flow-card__controls">
+        <div class="segmented" id="metricButtons">
+          <button data-metric="weight" class="segmented__btn is-active" type="button">体重</button>
+          <button data-metric="bodyFat" class="segmented__btn" type="button">体脂肪率</button>
+        </div>
+        <div class="segmented" id="rangeButtons">
+          <button data-range="30" class="segmented__btn is-active" type="button">1ヶ月</button>
+          <button data-range="90" class="segmented__btn" type="button">3ヶ月</button>
+          <button data-range="all" class="segmented__btn" type="button">すべて</button>
         </div>
       </div>
       <div class="flow-chart" id="flowChart">
@@ -130,7 +136,9 @@
           </label>
           <label class="field">
             <span class="field__label">目標日（任意）</span>
-            <input type="date" id="goalDate">
+            <span class="date-input-wrap">
+              <input type="date" id="goalDate">
+            </span>
           </label>
         </div>
         <button class="btn btn--ghost" id="goalSaveBtn" type="button">目標を保存</button>
