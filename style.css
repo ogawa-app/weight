@@ -307,20 +307,39 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
 }
 .segmented__btn.is-active{ background: var(--ink); color:#fff; border-color: var(--ink); font-weight: 700; }
 
+.flow-chart__hint{
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--clay-deep);
+}
+
 .flow-chart{
-  margin-top: 14px;
+  margin-top: 4px;
   min-height: 260px;
   display:flex;
-  align-items:center;
-  justify-content:center;
+  align-items:stretch;
 }
-.flow-chart svg{ width: 100%; height: auto; display:block; }
+.flow-chart__yaxis{
+  flex: 0 0 auto;
+  display:block;
+  height: auto;
+}
+.flow-chart__scroll{
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.flow-chart__plot{ display:block; height: auto; }
 .flow-chart__empty{
   color: var(--ink-soft);
   font-size: 14px;
   text-align:center;
   padding: 30px 10px;
   margin: 0;
+  width: 100%;
 }
 
 .flow-legend{
@@ -453,6 +472,20 @@ main{ padding: 0 16px; display:flex; flex-direction:column; gap: 14px; }
   align-items:center;
   justify-content:center;
   font-size: 11px;
+}
+
+/* ---------- Recipe page ---------- */
+.recipe-card__img{
+  display:block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+.recipe-card__back{
+  display:block;
+  margin-top: 20px;
+  text-decoration: none;
 }
 
 /* ---------- Footer ---------- */

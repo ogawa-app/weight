@@ -65,7 +65,7 @@
               <input type="checkbox" id="inputBento">
               <span>前日 固定メニューだった</span>
             </label>
-            <a href="recipe.png" target="_blank" rel="noopener" class="recipe-btn">レシピを見る</a>
+            <a href="recipe.html" class="recipe-btn">レシピを見る</a>
           </div>
         </div>
 
@@ -92,9 +92,10 @@
         <div class="segmented" id="rangeButtons">
           <button data-range="30" class="segmented__btn is-active" type="button">1ヶ月</button>
           <button data-range="90" class="segmented__btn" type="button">3ヶ月</button>
-          <button data-range="all" class="segmented__btn" type="button">すべて</button>
+          <button data-range="all" class="segmented__btn" type="button">全期間</button>
         </div>
       </div>
+      <p class="flow-chart__hint" id="flowHint" hidden>← 横にスクロールすると過去の記録も見られます</p>
       <div class="flow-chart" id="flowChart">
         <p class="flow-chart__empty" id="flowEmpty">まだ記録がありません。今日の体重を記録すると、ここに流れが見えてきます。</p>
       </div>

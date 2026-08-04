@@ -256,13 +256,44 @@
   const METRIC_UNIT = { weight: 'kg', bodyFat: '%' };
   const METRIC_ARIA = { weight: '体重の推移グラフ', bodyFat: '体脂肪率の推移グラフ' };
 
-  // The chart is redrawn with a viewBox that matches the container's actual
-  // CSS pixel width (instead of a fixed 600-unit box that gets scaled up or
-  // down by the browser). That keeps text, dots and lines a genuinely
-  // readable, constant physical size on every phone, instead of shrinking
-  // on narrower screens.
+  // Builds a set of x-axis tick dates spaced at least `minSpacingPx` apart
+  // on screen, so labels never overlap or duplicate regardless of how many
+  // days the chart spans (this replaces a fixed "3 labels" scheme that broke
+  // down — and could render the same date twice — when the visible range
+  // was very short, e.g. right after starting to use the app).
+  function buildXTicks(dayStart, dayEnd, dayPx){
+    const NICE_STEPS = [1,2,3,5,7,10,14,21,30,45,60,90,120,180,270,365,730];
+    const spanDays = Math.max(0, Math.round((dayEnd - dayStart) / 86400000));
+    const minSpacingPx = 64;
+    let stepDays = NICE_STEPS.find(s => s * dayPx >= minSpacingPx);
+    if (!stepDays) stepDays = Math.max(1, Math.ceil(spanDays / 4) || 1);
+
+    const ticks = [];
+    for (let d = 0; d <= spanDays; d += stepDays){
+      ticks.push(addDays(dayStart, d));
+    }
+    if (ticks.length === 0) ticks.push(dayStart);
+
+    const lastTick = ticks[ticks.length - 1];
+    const daysFromEnd = (dayEnd - lastTick) / 86400000;
+    if (daysFromEnd > stepDays * 0.4){
+      ticks.push(dayEnd);
+    } else {
+      ticks[ticks.length - 1] = dayEnd;
+    }
+    return ticks;
+  }
+
+  // The chart draws its data at a fixed "days per screen" scale for the
+  // 1ヶ月/3ヶ月 ranges (30 / 90 days always fill one viewport width), with
+  // the y-axis frozen in its own small SVG and the plot itself scrolling
+  // horizontally so older records can always be reached by scrolling left.
+  // 全期間 instead scales the whole history to fit exactly one screen.
+  // Data always starts flush at the left edge of the plot, so a short
+  // history never gets stranded near the right edge.
   function renderChart(entries, goal, rangeKey, metric){
     const container = document.getElementById('flowChart');
+    const hint = document.getElementById('flowHint');
     const field = METRIC_FIELD[metric] || 'weight';
     const unit = METRIC_UNIT[field];
 
@@ -270,81 +301,87 @@
 
     if (withField.length === 0){
       container.innerHTML = field === 'bodyFat' ? FLOW_EMPTY_BODYFAT_HTML : FLOW_EMPTY_HTML;
+      hint.hidden = true;
       return;
     }
 
     const movingAvgs = computeMovingAverages(entries, field);
 
     const today = todayDate();
-    let start;
-    if (rangeKey === 'all') start = parseISO(withField[0].date);
-    else start = addDays(today, -(parseInt(rangeKey,10)-1));
+    const dayStart = parseISO(withField[0].date);
+    const lastDate = parseISO(withField[withField.length - 1].date);
+    const dayEnd = today > lastDate ? today : lastDate;
+    const fullSpanDays = Math.max(1, (dayEnd - dayStart) / 86400000);
 
-    const visible = withField.filter(e => parseISO(e.date) >= start);
-    const visibleAvgs = movingAvgs.filter(m => parseISO(m.date) >= start);
-
-    if (visible.length === 0){
-      container.innerHTML = field === 'bodyFat' ? FLOW_EMPTY_BODYFAT_HTML : FLOW_EMPTY_HTML;
-      return;
-    }
-
-    const W = Math.max(280, Math.round(container.clientWidth || 320));
-    const H = 260;
-    const padL = 46, padR = 18, padT = 24, padB = 32;
-    const plotW = W - padL - padR;
+    const H = 260, padT = 24, padB = 32;
     const plotH = H - padT - padB;
+    const padPlotL = 14, padPlotR = 54;
+    const axisW = 46;
 
-    const dayStart = start;
-    const dayEnd = today > parseISO(visible[visible.length-1].date) ? today : parseISO(visible[visible.length-1].date);
-    const totalDays = Math.max(1, (dayEnd - dayStart) / 86400000);
+    const containerWidth = Math.max(220, Math.round(container.clientWidth || 320));
+    const viewportPlotWidth = Math.max(160, containerWidth - axisW);
 
-    const xOf = (dateObj) => padL + ((dateObj - dayStart)/86400000 / totalDays) * plotW;
+    const scaleDays = rangeKey === 'all' ? fullSpanDays : parseInt(rangeKey, 10);
+    const dayPx = Math.max(2, (viewportPlotWidth - padPlotL - padPlotR) / scaleDays);
+    const plotPxWidth = Math.max(viewportPlotWidth, Math.round(padPlotL + fullSpanDays * dayPx + padPlotR));
+    const isScrollable = plotPxWidth > viewportPlotWidth + 1;
 
-    let values = visible.map(e => e[field]).concat(visibleAvgs.map(m => m.avg));
+    const xOf = (dateObj) => padPlotL + ((dateObj - dayStart) / 86400000) * dayPx;
+
+    let values = withField.map(e => e[field]).concat(movingAvgs.map(m => m.avg));
     if (field === 'weight' && goal && goal.weight) values.push(goal.weight);
     let yMin = Math.min(...values), yMax = Math.max(...values);
     if (yMax - yMin < 1.5){
-      const mid = (yMax+yMin)/2;
+      const mid = (yMax + yMin) / 2;
       yMin = mid - 0.75; yMax = mid + 0.75;
     }
-    const pad_ = (yMax-yMin) * 0.15;
-    yMin -= pad_; yMax += pad_;
+    const padY = (yMax - yMin) * 0.15;
+    yMin -= padY; yMax += padY;
 
-    const yOf = (v) => padT + (1 - (v - yMin)/(yMax-yMin)) * plotH;
+    const yOf = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * plotH;
 
-    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${METRIC_ARIA[field]}">`;
+    // ---- y-axis (frozen) ----
+    let yaxisSvg = `<svg class="flow-chart__yaxis" width="${axisW}" height="${H}" viewBox="0 0 ${axisW} ${H}">`;
+    [yMax, (yMax + yMin) / 2, yMin].forEach((v, i) => {
+      const y = padT + (plotH / 2) * i;
+      yaxisSvg += `<text x="${axisW - 8}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="13" fill="#6B685E">${v.toFixed(1)}</text>`;
+    });
+    yaxisSvg += `</svg>`;
+
+    // ---- plot (scrollable) ----
+    let svg = `<svg class="flow-chart__plot" viewBox="0 0 ${plotPxWidth} ${H}" width="${plotPxWidth}" height="${H}" role="img" aria-label="${METRIC_ARIA[field]}">`;
 
     // gridlines (3 horizontal)
-    for (let i=0;i<=2;i++){
-      const y = padT + (plotH/2)*i;
-      svg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E4DFD3" stroke-width="1" />`;
+    for (let i = 0; i <= 2; i++){
+      const y = padT + (plotH / 2) * i;
+      svg += `<line x1="0" y1="${y.toFixed(1)}" x2="${plotPxWidth}" y2="${y.toFixed(1)}" stroke="#E4DFD3" stroke-width="1" />`;
     }
 
     // goal line (weight only)
     if (field === 'weight' && goal && goal.weight){
       const gy = yOf(goal.weight);
-      svg += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W-padR}" y2="${gy.toFixed(1)}" stroke="#B98B4E" stroke-width="1.5" stroke-dasharray="5 4" />`;
-      svg += `<text x="${W-padR}" y="${(gy-7).toFixed(1)}" text-anchor="end" font-size="13" font-weight="700" fill="#B98B4E">目標 ${fmtKg(goal.weight)}kg</text>`;
+      svg += `<line x1="0" y1="${gy.toFixed(1)}" x2="${plotPxWidth}" y2="${gy.toFixed(1)}" stroke="#B98B4E" stroke-width="1.5" stroke-dasharray="5 4" />`;
+      svg += `<text x="${plotPxWidth - 8}" y="${(gy - 7).toFixed(1)}" text-anchor="end" font-size="13" font-weight="700" fill="#B98B4E">目標 ${fmtKg(goal.weight)}kg</text>`;
     }
 
     // today marker
     const tx = xOf(today);
-    svg += `<line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${padT+plotH}" stroke="#C7BCA6" stroke-width="1.2" stroke-dasharray="2 3" />`;
+    svg += `<line x1="${tx.toFixed(1)}" y1="${padT}" x2="${tx.toFixed(1)}" y2="${padT + plotH}" stroke="#C7BCA6" stroke-width="1.2" stroke-dasharray="2 3" />`;
 
     // raw values connecting line (thin, behind the moving-average line)
-    if (visible.length >= 2){
-      const rawPts = visible.map(e => [xOf(parseISO(e.date)), yOf(e[field])]);
+    if (withField.length >= 2){
+      const rawPts = withField.map(e => [xOf(parseISO(e.date)), yOf(e[field])]);
       svg += `<path d="${catmullRomPath(rawPts)}" fill="none" stroke="#C7BCA6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" />`;
     }
 
     // moving average smooth line
-    if (visibleAvgs.length >= 2){
-      const pts = visibleAvgs.map(m => [xOf(parseISO(m.date)), yOf(m.avg)]);
+    if (movingAvgs.length >= 2){
+      const pts = movingAvgs.map(m => [xOf(parseISO(m.date)), yOf(m.avg)]);
       svg += `<path d="${catmullRomPath(pts)}" fill="none" stroke="#62785B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />`;
     }
 
     // raw dots
-    visible.forEach(e => {
+    withField.forEach(e => {
       const cx = xOf(parseISO(e.date));
       const cy = yOf(e[field]);
       if (e.exercise){
@@ -354,29 +391,30 @@
     });
 
     // latest value label
-    const lastPt = visible[visible.length-1];
+    const lastPt = withField[withField.length - 1];
     const lx = xOf(parseISO(lastPt.date));
     const ly = yOf(lastPt[field]);
-    const lastAnchor = lx > W - padR - 60 ? 'end' : 'start';
+    const lastAnchor = lx < 80 ? 'start' : 'end';
     const lastX = lastAnchor === 'end' ? lx - 10 : lx + 10;
-    svg += `<text x="${lastX.toFixed(1)}" y="${(ly-12).toFixed(1)}" text-anchor="${lastAnchor}" font-size="14" font-weight="700" fill="#26251F">${fmtKg(lastPt[field])}${unit}</text>`;
+    svg += `<text x="${lastX.toFixed(1)}" y="${(ly - 12).toFixed(1)}" text-anchor="${lastAnchor}" font-size="14" font-weight="700" fill="#26251F">${fmtKg(lastPt[field])}${unit}</text>`;
 
-    // x-axis labels: start / mid / today
-    const labelDates = [dayStart, new Date((dayStart.getTime()+dayEnd.getTime())/2), dayEnd];
-    labelDates.forEach((d,i) => {
-      const anchor = i===0 ? 'start' : (i===2 ? 'end' : 'middle');
-      const x = i===0 ? padL : (i===2 ? W-padR : xOf(d));
-      svg += `<text x="${x.toFixed(1)}" y="${H-8}" text-anchor="${anchor}" font-size="13" fill="#6B685E">${formatShort(d)}</text>`;
-    });
-
-    // y-axis labels
-    [yMax, (yMax+yMin)/2, yMin].forEach((v,i) => {
-      const y = padT + (plotH/2)*i;
-      svg += `<text x="${padL-8}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="13" fill="#6B685E">${v.toFixed(1)}</text>`;
+    // x-axis labels
+    const ticks = buildXTicks(dayStart, dayEnd, dayPx);
+    ticks.forEach((d, i) => {
+      const x = xOf(d);
+      const anchor = i === 0 ? 'start' : (i === ticks.length - 1 ? 'end' : 'middle');
+      const clampedX = anchor === 'start' ? Math.max(x, 2) : (anchor === 'end' ? Math.min(x, plotPxWidth - 2) : x);
+      svg += `<text x="${clampedX.toFixed(1)}" y="${H - 8}" text-anchor="${anchor}" font-size="13" fill="#6B685E">${formatShort(d)}</text>`;
     });
 
     svg += `</svg>`;
-    container.innerHTML = svg;
+
+    container.innerHTML = `${yaxisSvg}<div class="flow-chart__scroll">${svg}</div>`;
+
+    const scrollEl = container.querySelector('.flow-chart__scroll');
+    if (scrollEl) scrollEl.scrollLeft = scrollEl.scrollWidth;
+
+    hint.hidden = !(isScrollable && rangeKey !== 'all');
   }
 
   /* ---------------- Rendering: History ---------------- */

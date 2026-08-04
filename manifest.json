@@ -1,6 +1,6 @@
 {
-  "name": "ながれ｜体重記録",
-  "short_name": "ながれ",
+  "name": "体重管理",
+  "short_name": "体重管理",
   "description": "毎朝の体重を記録して、流れで見るためのシンプルなアプリ",
   "start_url": "./index.html",
   "scope": "./",

@@ -1,7 +1,8 @@
-const CACHE_NAME = 'weightflow-cache-v5';
+const CACHE_NAME = 'weightflow-cache-v6';
 const CORE_FILES = [
   './',
   './index.html',
+  './recipe.html',
   './style.css',
   './app.js',
   './manifest.json',
